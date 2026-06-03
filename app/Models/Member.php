@@ -20,6 +20,11 @@ class Member extends Model
         'status',
         'birth_date',
         'notes',
+        'pin',
+    ];
+
+    protected $hidden = [
+        'pin',
     ];
 
     protected $casts = [

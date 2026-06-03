@@ -26,6 +26,11 @@ class MemberForm
                             ->required()
                             ->maxLength(30)
                             ->unique(ignoreRecord: true),
+                        TextInput::make('pin')
+                            ->label('PIN')
+                            ->maxLength(10)
+                            ->unique(ignoreRecord: true)
+                            ->helperText('Optional PIN for web-based check-in/check-out'),
                         TextInput::make('email')
                             ->email()
                             ->nullable()
@@ -48,7 +53,7 @@ class MemberForm
     private static function statusOptions(): array
     {
         return collect(MemberStatus::cases())
-            ->mapWithKeys(fn (MemberStatus $status) => [$status->value => ucfirst($status->value)])
+            ->mapWithKeys(fn(MemberStatus $status) => [$status->value => ucfirst($status->value)])
             ->all();
     }
 }

@@ -19,7 +19,105 @@ class AttendanceService
         private readonly SettingsService $settings,
         private readonly SubscriptionService $subscriptions,
         private readonly TimeRoundingService $rounding,
-    ) {
+    ) {}
+
+    public function processPhoneAndPin(string $phone, string $pin): array
+    {
+        $member = Member::query()->where('phone', $phone)->first();
+
+        if (! $member) {
+            return $this->buildErrorResponse('Member not found', 'invalid_phone');
+        }
+
+        if ($member->pin !== $pin) {
+            return $this->buildErrorResponse('Invalid PIN', 'invalid_pin');
+        }
+
+        if ($member->status === MemberStatus::Blocked || $member->status === MemberStatus::Inactive) {
+            return $this->buildErrorResponse('Member is blocked or inactive', 'member_blocked');
+        }
+
+        $scannedAt = now();
+        $openSession = AttendanceSession::query()
+            ->where('member_id', $member->id)
+            ->where('status', SessionStatus::Open->value)
+            ->latest('check_in_at')
+            ->first();
+
+        if ($openSession) {
+            return $this->handlePhoneAndPinCheckOut($member, $openSession, $scannedAt);
+        }
+
+        return $this->handlePhoneAndPinCheckIn($member, $scannedAt);
+    }
+
+    private function handlePhoneAndPinCheckIn(Member $member, Carbon $scannedAt): array
+    {
+        $subscription = $this->subscriptions->getActiveSubscription($member, $scannedAt);
+
+        if (! $subscription) {
+            return $this->buildErrorResponse('No active subscription', 'subscription_expired');
+        }
+
+        if ($this->subscriptions->isHourBased($subscription->package)) {
+            if ($subscription->remaining_hours !== null && (float) $subscription->remaining_hours <= 0) {
+                return $this->buildErrorResponse('No remaining hours', 'no_remaining_hours');
+            }
+        }
+
+        if (! $this->canCheckInWithDueAmount($subscription)) {
+            return $this->buildErrorResponse('Outstanding balance exceeds limit', 'unpaid_limit_exceeded');
+        }
+
+        $session = AttendanceSession::create([
+            'member_id' => $member->id,
+            'subscription_id' => $subscription->id,
+            'check_in_at' => $scannedAt,
+            'status' => SessionStatus::Open->value,
+        ]);
+
+        return $this->buildSuccessResponse($member, $session, 'checked_in');
+    }
+
+    private function handlePhoneAndPinCheckOut(Member $member, AttendanceSession $session, Carbon $scannedAt): array
+    {
+        $durations = $this->rounding->calculateDurations($session->check_in_at, $scannedAt);
+        $rawMinutes = $durations['raw_minutes'];
+        $roundedMinutes = $durations['rounded_minutes'];
+        $roundedToAt = $durations['rounded_to_at'];
+
+        $reviewThresholdMinutes = $this->settings->getInt('open_session_review_after_hours') * 60;
+        if ($reviewThresholdMinutes > 0 && $rawMinutes >= $reviewThresholdMinutes) {
+            $session->update([
+                'check_out_at' => $scannedAt,
+                'raw_duration_minutes' => $rawMinutes,
+                'billable_duration_minutes' => null,
+                'rounded_from_at' => $session->check_in_at,
+                'rounded_to_at' => $roundedToAt,
+                'status' => SessionStatus::NeedsReview->value,
+            ]);
+
+            return $this->buildErrorResponse('Session duration exceeds threshold and needs review', 'abnormal_session');
+        }
+
+        $session->update([
+            'check_out_at' => $scannedAt,
+            'raw_duration_minutes' => $rawMinutes,
+            'billable_duration_minutes' => $roundedMinutes,
+            'rounded_from_at' => $session->check_in_at,
+            'rounded_to_at' => $roundedToAt,
+            'status' => SessionStatus::Closed->value,
+        ]);
+
+        if ($session->subscription) {
+            $billableHours = round($roundedMinutes / 60, 2);
+
+            if ($this->subscriptions->isHourBased($session->subscription->package)) {
+                $this->subscriptions->applyUsage($session->subscription, $billableHours);
+            }
+        }
+
+        return $this->buildSuccessResponse($member, $session, 'checked_out', $rawMinutes, $roundedMinutes);
     }
 
     public function processScan(Member $member, ?QrCode $qrCode, array $payload): array
@@ -219,5 +317,45 @@ class AttendanceService
         }
 
         return true;
+    }
+
+    private function buildErrorResponse(string $message, string $reason): array
+    {
+        return [
+            'success' => false,
+            'message' => $message,
+            'reason' => $reason,
+        ];
+    }
+
+    private function buildSuccessResponse(Member $member, AttendanceSession $session, string $status, ?int $rawMinutes = null, ?int $roundedMinutes = null): array
+    {
+        $remainingHours = null;
+        if ($session->subscription) {
+            $session->subscription->refresh();
+            $remainingHours = $session->subscription->remaining_hours;
+        }
+
+        $response = [
+            'success' => true,
+            'message' => $status === 'checked_in' ? 'Successfully checked in' : 'Successfully checked out',
+            'status' => $status,
+            'member' => [
+                'name' => $member->name,
+                'phone' => $member->phone,
+            ],
+            'remaining_hours' => $remainingHours,
+            'session' => [
+                'check_in_at' => $session->check_in_at->toIso8601String(),
+            ],
+        ];
+
+        if ($status === 'checked_out') {
+            $response['session']['check_out_at'] = $session->check_out_at->toIso8601String();
+            $response['duration_worked_minutes'] = $roundedMinutes;
+            $response['duration_worked_hours'] = round($roundedMinutes / 60, 2);
+        }
+
+        return $response;
     }
 }
