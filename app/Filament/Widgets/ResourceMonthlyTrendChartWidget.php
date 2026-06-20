@@ -9,7 +9,9 @@ use Filament\Widgets\ChartWidget;
 
 class ResourceMonthlyTrendChartWidget extends ChartWidget
 {
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 1;
+
+    protected ?string $maxHeight = '240px';
 
     public function getHeading(): ?string
     {
