@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AttendanceSessions;
 
+use App\Filament\Resources\AttendanceSessions\Pages\EditAttendanceSession;
 use App\Filament\Resources\AttendanceSessions\Pages\ListAttendanceSessions;
 use App\Filament\Resources\AttendanceSessions\Schemas\AttendanceSessionForm;
 use App\Filament\Resources\AttendanceSessions\Tables\AttendanceSessionsTable;
@@ -39,6 +40,7 @@ class AttendanceSessionResource extends Resource
     {
         return [
             'index' => ListAttendanceSessions::route('/'),
+            'edit' => EditAttendanceSession::route('/{record}/edit'),
         ];
     }
 
