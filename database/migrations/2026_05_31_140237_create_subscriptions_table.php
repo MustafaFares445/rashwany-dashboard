@@ -18,9 +18,9 @@ return new class extends Migration
             $table->string('status')->default('active')->index();
             $table->timestamp('starts_at');
             $table->timestamp('ends_at')->nullable();
-            $table->decimal('total_hours', 10, 2)->nullable();
-            $table->decimal('remaining_hours', 10, 2)->nullable();
-            $table->decimal('used_hours', 10, 2)->default(0);
+            $table->decimal('total_hours', 10, 4)->nullable();
+            $table->decimal('remaining_hours', 10, 4)->nullable();
+            $table->decimal('used_hours', 10, 4)->default(0);
             $table->decimal('price', 10, 2)->default(0);
             $table->decimal('paid_amount', 10, 2)->default(0);
             $table->decimal('due_amount', 10, 2)->default(0);
