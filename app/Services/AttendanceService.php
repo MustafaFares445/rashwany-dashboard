@@ -352,8 +352,8 @@ class AttendanceService
 
         if ($status === 'checked_out') {
             $response['session']['check_out_at'] = $session->check_out_at->toIso8601String();
-            $response['duration_worked_minutes'] = $roundedMinutes;
-            $response['duration_worked_hours'] = round($roundedMinutes / 60, 2);
+            $response['duration_worked_minutes'] = $rawMinutes;
+            $response['duration_worked_hours'] = round($rawMinutes / 60, 2);
         }
 
         return $response;

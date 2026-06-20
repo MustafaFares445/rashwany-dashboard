@@ -46,35 +46,35 @@
             <div id="successAlert" class="hidden bg-green-50 border border-green-200 rounded-lg p-4">
                 <div class="text-center">
                     <p id="statusMessage" class="text-green-800 font-semibold text-lg mb-4"></p>
-                    <div class="text-left space-y-3">
+                    <div class="text-left space-y-4">
                         <div>
-                            <p class="text-gray-600 text-xs uppercase font-semibold">Member Name</p>
+                            <p class="text-gray-600 text-xs uppercase font-semibold mb-1">Member Name</p>
                             <p id="memberName" class="text-gray-900 font-semibold text-lg"></p>
                         </div>
                         <div>
-                            <p class="text-gray-600 text-xs uppercase font-semibold">Check-In Time</p>
+                            <p class="text-gray-600 text-xs uppercase font-semibold mb-1">Check-In Time</p>
                             <p id="checkInTime" class="text-gray-900"></p>
                         </div>
-                        <div id="checkOutInfo" class="hidden">
+                        <div id="checkOutInfo" class="hidden space-y-3">
                             <div>
-                                <p class="text-gray-600 text-xs uppercase font-semibold">Check-Out Time</p>
+                                <p class="text-gray-600 text-xs uppercase font-semibold mb-1">Check-Out Time</p>
                                 <p id="checkOutTime" class="text-gray-900"></p>
                             </div>
                             <div>
-                                <p class="text-gray-600 text-xs uppercase font-semibold">Duration Worked</p>
+                                <p class="text-gray-600 text-xs uppercase font-semibold mb-1">Duration Worked</p>
                                 <p id="durationWorked" class="text-gray-900"></p>
                             </div>
                         </div>
-                        <div class="border-t border-green-200 pt-3 mt-3">
-                            <p class="text-gray-600 text-xs uppercase font-semibold">Remaining Hours</p>
+                        <div class="border-t border-green-200 pt-4 mt-4">
+                            <p class="text-gray-600 text-xs uppercase font-semibold mb-1">Remaining Hours</p>
                             <p id="remainingHours" class="text-green-700 font-bold text-xl"></p>
                         </div>
                     </div>
                 </div>
 
-                <button type="button" id="resetBtn"
-                    class="w-full mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">
-                    New Check-In
+                <button type="button" id="actionBtn"
+                    class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+                    Check Out
                 </button>
             </div>
         </div>
@@ -87,7 +87,22 @@
         const errorAlert = document.getElementById('errorAlert');
         const successAlert = document.getElementById('successAlert');
         const errorMessage = document.getElementById('errorMessage');
-        const resetBtn = document.getElementById('resetBtn');
+        const actionBtn = document.getElementById('actionBtn');
+
+        let lastPhone = null;
+        let lastPin = null;
+        let currentStatus = null;
+
+        function formatRemainingHours(hours) {
+            if (hours === null || hours === 'N/A') return 'N/A';
+            const decimal = parseFloat(hours);
+            const wholeHours = Math.floor(decimal);
+            const minutes = Math.round((decimal - wholeHours) * 60);
+            if (minutes === 0) {
+                return wholeHours + ' hour' + (wholeHours !== 1 ? 's' : '');
+            }
+            return wholeHours + ' hour' + (wholeHours !== 1 ? 's' : '') + ' ' + minutes + ' minute' + (minutes !== 1 ? 's' : '');
+        }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -96,6 +111,9 @@
 
             try {
                 const formData = new FormData(form);
+                lastPhone = formData.get('phone');
+                lastPin = formData.get('pin');
+
                 const response = await fetch('{{ route('member.checkin.process') }}', {
                     method: 'POST',
                     headers: {
@@ -126,6 +144,7 @@
             successAlert.classList.remove('hidden');
             statusArea.classList.remove('hidden');
 
+            currentStatus = data.status;
             const statusMessage = data.status === 'checked_in' ? '✓ Checked In' : '✓ Checked Out';
             document.getElementById('statusMessage').textContent = statusMessage;
             document.getElementById('memberName').textContent = data.member.name;
@@ -133,8 +152,8 @@
             const checkInTime = new Date(data.session.check_in_at);
             document.getElementById('checkInTime').textContent = checkInTime.toLocaleString();
 
-            const remainingHours = data.remaining_hours !== null ? parseFloat(data.remaining_hours).toFixed(2) : 'N/A';
-            document.getElementById('remainingHours').textContent = remainingHours + ' hours';
+            const remainingHours = formatRemainingHours(data.remaining_hours);
+            document.getElementById('remainingHours').textContent = remainingHours;
 
             const checkOutInfo = document.getElementById('checkOutInfo');
             if (data.status === 'checked_out') {
@@ -143,8 +162,14 @@
                 document.getElementById('checkOutTime').textContent = checkOutTime.toLocaleString();
                 document.getElementById('durationWorked').textContent = data.duration_worked_hours + ' hours (' + data
                     .duration_worked_minutes + ' minutes)';
+                actionBtn.textContent = 'New Check-In';
+                actionBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'text-white');
+                actionBtn.classList.add('bg-gray-200', 'hover:bg-gray-300', 'text-gray-800');
             } else {
                 checkOutInfo.classList.add('hidden');
+                actionBtn.textContent = 'Check Out';
+                actionBtn.classList.remove('bg-gray-200', 'hover:bg-gray-300', 'text-gray-800');
+                actionBtn.classList.add('bg-blue-600', 'hover:bg-blue-700', 'text-white');
             }
 
             form.classList.add('hidden');
@@ -157,12 +182,53 @@
             statusArea.classList.remove('hidden');
         }
 
-        resetBtn.addEventListener('click', () => {
-            form.reset();
-            form.classList.remove('hidden');
-            statusArea.classList.add('hidden');
-            errorAlert.classList.add('hidden');
-            successAlert.classList.add('hidden');
+        actionBtn.addEventListener('click', async () => {
+            if (currentStatus === 'checked_in') {
+                // Auto check-out with stored credentials
+                actionBtn.disabled = true;
+                actionBtn.textContent = 'Processing...';
+
+                try {
+                    const response = await fetch('{{ route('member.checkin.process') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            phone: lastPhone,
+                            pin: lastPin,
+                        }),
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        displaySuccess(data);
+                    } else {
+                        displayError(data.message);
+                    }
+                } catch (error) {
+                    displayError('An error occurred. Please try again.');
+                    console.error('Error:', error);
+                } finally {
+                    actionBtn.disabled = false;
+                    if (currentStatus === 'checked_in') {
+                        actionBtn.textContent = 'Check Out';
+                    } else {
+                        actionBtn.textContent = 'New Check-In';
+                    }
+                }
+            } else {
+                // Reset form for new check-in
+                form.reset();
+                form.classList.remove('hidden');
+                statusArea.classList.add('hidden');
+                errorAlert.classList.add('hidden');
+                successAlert.classList.add('hidden');
+                lastPhone = null;
+                lastPin = null;
+                currentStatus = null;
+            }
         });
     </script>
 </body>
