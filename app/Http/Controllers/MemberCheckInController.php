@@ -21,7 +21,9 @@ class MemberCheckInController extends Controller
     {
         $validated = $request->validate([
             'phone' => 'required|string',
-            'pin' => 'required|string',
+            'pin' => ['required', 'string', 'regex:/^\d{4}$/'],
+        ], [
+            'pin.regex' => 'PIN must be exactly 4 digits.',
         ]);
 
         $result = $this->attendanceService->processPhoneAndPin($validated['phone'], $validated['pin']);

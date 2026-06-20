@@ -27,7 +27,8 @@
                 <label for="pin" class="block text-sm font-medium text-gray-700 mb-1">
                     PIN
                 </label>
-                <input type="password" id="pin" name="pin" required placeholder="Enter your PIN"
+                <input type="password" id="pin" name="pin" required placeholder="Enter 4-digit PIN"
+                    inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="one-time-code"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
             </div>
 
@@ -66,7 +67,7 @@
                             </div>
                         </div>
                         <div class="border-t border-green-200 pt-4 mt-4">
-                            <p class="text-gray-600 text-xs uppercase font-semibold mb-1">Remaining Hours</p>
+                            <p class="text-gray-600 text-xs uppercase font-semibold mb-1">Remaining Time</p>
                             <p id="remainingHours" class="text-green-700 font-bold text-xl"></p>
                         </div>
                     </div>
@@ -88,31 +89,101 @@
         const successAlert = document.getElementById('successAlert');
         const errorMessage = document.getElementById('errorMessage');
         const actionBtn = document.getElementById('actionBtn');
+        const pinInput = document.getElementById('pin');
+        const remainingTimeElement = document.getElementById('remainingHours');
 
         let lastPhone = null;
         let lastPin = null;
         let currentStatus = null;
+        let remainingCountdownTimer = null;
 
-        function formatRemainingHours(hours) {
-            if (hours === null || hours === 'N/A') return 'N/A';
+        pinInput.addEventListener('input', () => {
+            pinInput.value = pinInput.value.replace(/\D/g, '').slice(0, 4);
+        });
+
+        function remainingHoursToSeconds(hours) {
+            if (hours === null || hours === 'N/A' || hours === undefined) return null;
+
             const decimal = parseFloat(hours);
-            const wholeHours = Math.floor(decimal);
-            const minutes = Math.round((decimal - wholeHours) * 60);
-            if (minutes === 0) {
-                return wholeHours + ' hour' + (wholeHours !== 1 ? 's' : '');
+            if (Number.isNaN(decimal)) return null;
+
+            return Math.max(0, Math.round(decimal * 3600));
+        }
+
+        function formatRemainingSeconds(totalSeconds) {
+            if (totalSeconds === null) return 'N/A';
+
+            const safeSeconds = Math.max(0, totalSeconds);
+            const hours = Math.floor(safeSeconds / 3600);
+            const minutes = Math.floor((safeSeconds % 3600) / 60);
+            const seconds = safeSeconds % 60;
+
+            return String(hours).padStart(2, '0') + ':' +
+                String(minutes).padStart(2, '0') + ':' +
+                String(seconds).padStart(2, '0');
+        }
+
+        function stopRemainingCountdown() {
+            if (remainingCountdownTimer) {
+                clearInterval(remainingCountdownTimer);
+                remainingCountdownTimer = null;
             }
-            return wholeHours + ' hour' + (wholeHours !== 1 ? 's' : '') + ' ' + minutes + ' minute' + (minutes !== 1 ? 's' : '');
+        }
+
+        function setRemainingTime(seconds) {
+            remainingTimeElement.textContent = formatRemainingSeconds(seconds);
+        }
+
+        function showRemainingTime(data) {
+            stopRemainingCountdown();
+
+            const baseRemainingSeconds = remainingHoursToSeconds(data.remaining_hours);
+            if (baseRemainingSeconds === null) {
+                setRemainingTime(null);
+                return;
+            }
+
+            if (data.status !== 'checked_in') {
+                setRemainingTime(baseRemainingSeconds);
+                return;
+            }
+
+            const checkInTimestamp = new Date(data.session.check_in_at).getTime();
+
+            const tick = () => {
+                const elapsedSeconds = Number.isNaN(checkInTimestamp)
+                    ? 0
+                    : Math.max(0, Math.floor((Date.now() - checkInTimestamp) / 1000));
+                const remainingSeconds = Math.max(0, baseRemainingSeconds - elapsedSeconds);
+
+                setRemainingTime(remainingSeconds);
+
+                if (remainingSeconds <= 0) {
+                    stopRemainingCountdown();
+                }
+            };
+
+            tick();
+            remainingCountdownTimer = setInterval(tick, 1000);
         }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            const formData = new FormData(form);
+            const pin = formData.get('pin');
+
+            if (!/^\d{4}$/.test(pin)) {
+                displayError('PIN must be exactly 4 digits.');
+                return;
+            }
+
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processing...';
 
             try {
-                const formData = new FormData(form);
                 lastPhone = formData.get('phone');
-                lastPin = formData.get('pin');
+                lastPin = pin;
 
                 const response = await fetch('{{ route('member.checkin.process') }}', {
                     method: 'POST',
@@ -152,8 +223,7 @@
             const checkInTime = new Date(data.session.check_in_at);
             document.getElementById('checkInTime').textContent = checkInTime.toLocaleString();
 
-            const remainingHours = formatRemainingHours(data.remaining_hours);
-            document.getElementById('remainingHours').textContent = remainingHours;
+            showRemainingTime(data);
 
             const checkOutInfo = document.getElementById('checkOutInfo');
             if (data.status === 'checked_out') {
@@ -176,6 +246,7 @@
         }
 
         function displayError(message) {
+            stopRemainingCountdown();
             errorAlert.classList.remove('hidden');
             successAlert.classList.add('hidden');
             errorMessage.textContent = message;
@@ -220,6 +291,7 @@
                 }
             } else {
                 // Reset form for new check-in
+                stopRemainingCountdown();
                 form.reset();
                 form.classList.remove('hidden');
                 statusArea.classList.add('hidden');
