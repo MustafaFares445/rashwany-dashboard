@@ -6,7 +6,6 @@ use App\Enums\PackageDurationUnit;
 use App\Enums\PackageRenewalType;
 use App\Enums\PackageType;
 use Filament\Forms\Components\KeyValue;
-use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -17,37 +16,35 @@ class PackageForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(2)
             ->components([
-                Section::make()
-                    ->columns(2)
-                    ->schema([
-                        TextInput::make('name')
-                            ->required()
-                            ->maxLength(255),
-                        Select::make('type')
-                            ->required()
-                            ->options(self::typeOptions()),
-                        Select::make('duration_unit')
-                            ->required()
-                            ->options(self::durationOptions()),
-                        TextInput::make('duration_value')
-                            ->numeric()
-                            ->minValue(1),
-                        TextInput::make('included_hours')
-                            ->numeric()
-                            ->step(0.01),
-                        TextInput::make('price')
-                            ->numeric()
-                            ->step(0.01)
-                            ->required(),
-                        Select::make('renewal_type')
-                            ->required()
-                            ->options(self::renewalOptions()),
-                        Toggle::make('is_active')
-                            ->default(true),
-                        KeyValue::make('settings_json')
-                            ->label('Settings'),
-                    ]),
+                TextInput::make('name')
+                    ->required()
+                    ->maxLength(255),
+                Select::make('type')
+                    ->required()
+                    ->options(self::typeOptions()),
+                Select::make('duration_unit')
+                    ->required()
+                    ->options(self::durationOptions()),
+                TextInput::make('duration_value')
+                    ->numeric()
+                    ->minValue(1),
+                TextInput::make('included_hours')
+                    ->numeric()
+                    ->step(0.01),
+                TextInput::make('price')
+                    ->numeric()
+                    ->step(0.01)
+                    ->required(),
+                Select::make('renewal_type')
+                    ->required()
+                    ->options(self::renewalOptions()),
+                Toggle::make('is_active')
+                    ->default(true),
+                KeyValue::make('settings_json')
+                    ->label('Settings')
+                    ->columnSpanFull(),
             ]);
     }
 

@@ -10,6 +10,10 @@ class MonthlyRevenueChartWidget extends ChartWidget
 {
     protected ?string $heading = 'Monthly Paid Revenue (Last 6 Months)';
 
+    protected int|string|array $columnSpan = 1;
+
+    protected ?string $maxHeight = '240px';
+
     protected function getData(): array
     {
         $months = collect(range(5, 0))

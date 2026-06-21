@@ -23,6 +23,8 @@ class AttendanceSession extends Model
         'correction_request_id',
         'created_by',
         'closed_by',
+        'admin_updated_by',
+        'admin_updated_at',
         'notes',
     ];
 
@@ -31,6 +33,7 @@ class AttendanceSession extends Model
         'check_out_at' => 'datetime',
         'rounded_from_at' => 'datetime',
         'rounded_to_at' => 'datetime',
+        'admin_updated_at' => 'datetime',
         'status' => SessionStatus::class,
     ];
 
@@ -57,5 +60,10 @@ class AttendanceSession extends Model
     public function correctionRequest(): BelongsTo
     {
         return $this->belongsTo(CorrectionRequest::class, 'correction_request_id');
+    }
+
+    public function adminUpdatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_updated_by');
     }
 }
