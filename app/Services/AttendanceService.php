@@ -82,7 +82,9 @@ class AttendanceService
     private function handlePhoneAndPinCheckOut(Member $member, AttendanceSession $session, Carbon $scannedAt): array
     {
         $durations = $this->rounding->calculateDurations($session->check_in_at, $scannedAt);
+        $rawSeconds = $durations['raw_seconds'];
         $rawMinutes = $durations['raw_minutes'];
+        $roundedSeconds = $durations['rounded_seconds'];
         $roundedMinutes = $durations['rounded_minutes'];
         $roundedToAt = $durations['rounded_to_at'];
 
@@ -91,7 +93,9 @@ class AttendanceService
             $session->update([
                 'check_out_at' => $scannedAt,
                 'raw_duration_minutes' => $rawMinutes,
+                'raw_duration_seconds' => $rawSeconds,
                 'billable_duration_minutes' => null,
+                'billable_duration_seconds' => null,
                 'rounded_from_at' => $session->check_in_at,
                 'rounded_to_at' => $roundedToAt,
                 'status' => SessionStatus::NeedsReview->value,
@@ -103,21 +107,23 @@ class AttendanceService
         $session->update([
             'check_out_at' => $scannedAt,
             'raw_duration_minutes' => $rawMinutes,
+            'raw_duration_seconds' => $rawSeconds,
             'billable_duration_minutes' => $roundedMinutes,
+            'billable_duration_seconds' => $roundedSeconds,
             'rounded_from_at' => $session->check_in_at,
             'rounded_to_at' => $roundedToAt,
             'status' => SessionStatus::Closed->value,
         ]);
 
-        if ($session->subscription) {
-            $billableHours = round($roundedMinutes / 60, 2);
+        if ($session->subscription && $rawSeconds > 0) {
+            $usedHours = round($rawSeconds / 3600, 4);
 
             if ($this->subscriptions->isHourBased($session->subscription->package)) {
-                $this->subscriptions->applyUsage($session->subscription, $billableHours);
+                $this->subscriptions->applyUsage($session->subscription, $usedHours);
             }
         }
 
-        return $this->buildSuccessResponse($member, $session, 'checked_out', $rawMinutes, $roundedMinutes);
+        return $this->buildSuccessResponse($member, $session, 'checked_out', $rawMinutes, $roundedMinutes, $rawSeconds, $roundedSeconds);
     }
 
     public function processScan(Member $member, ?QrCode $qrCode, array $payload): array
@@ -192,7 +198,9 @@ class AttendanceService
         }
 
         $durations = $this->rounding->calculateDurations($session->check_in_at, $scannedAt);
+        $rawSeconds = $durations['raw_seconds'];
         $rawMinutes = $durations['raw_minutes'];
+        $roundedSeconds = $durations['rounded_seconds'];
         $roundedMinutes = $durations['rounded_minutes'];
         $roundedToAt = $durations['rounded_to_at'];
 
@@ -203,7 +211,9 @@ class AttendanceService
             $session->update([
                 'check_out_at' => $scannedAt,
                 'raw_duration_minutes' => $rawMinutes,
+                'raw_duration_seconds' => $rawSeconds,
                 'billable_duration_minutes' => null,
+                'billable_duration_seconds' => null,
                 'rounded_from_at' => $session->check_in_at,
                 'rounded_to_at' => $roundedToAt,
                 'status' => SessionStatus::NeedsReview->value,
@@ -218,18 +228,20 @@ class AttendanceService
         $session->update([
             'check_out_at' => $scannedAt,
             'raw_duration_minutes' => $rawMinutes,
+            'raw_duration_seconds' => $rawSeconds,
             'billable_duration_minutes' => $roundedMinutes,
+            'billable_duration_seconds' => $roundedSeconds,
             'rounded_from_at' => $session->check_in_at,
             'rounded_to_at' => $roundedToAt,
             'status' => SessionStatus::Closed->value,
             'check_out_scan_id' => $scan->id,
         ]);
 
-        if ($session->subscription) {
-            $billableHours = round($roundedMinutes / 60, 2);
+        if ($session->subscription && $rawSeconds > 0) {
+            $usedHours = round($rawSeconds / 3600, 4);
 
             if ($this->subscriptions->isHourBased($session->subscription->package)) {
-                $this->subscriptions->applyUsage($session->subscription, $billableHours);
+                $this->subscriptions->applyUsage($session->subscription, $usedHours);
             }
         }
 
@@ -328,8 +340,15 @@ class AttendanceService
         ];
     }
 
-    private function buildSuccessResponse(Member $member, AttendanceSession $session, string $status, ?int $rawMinutes = null, ?int $roundedMinutes = null): array
-    {
+    private function buildSuccessResponse(
+        Member $member,
+        AttendanceSession $session,
+        string $status,
+        ?int $rawMinutes = null,
+        ?int $roundedMinutes = null,
+        ?int $rawSeconds = null,
+        ?int $roundedSeconds = null,
+    ): array {
         $remainingHours = null;
         if ($session->subscription) {
             $session->subscription->refresh();
@@ -345,15 +364,22 @@ class AttendanceService
                 'phone' => $member->phone,
             ],
             'remaining_hours' => $remainingHours,
+            'remaining_seconds' => $remainingHours === null ? null : max(0, (int) round(((float) $remainingHours) * 3600)),
             'session' => [
                 'check_in_at' => $session->check_in_at->toIso8601String(),
             ],
         ];
 
         if ($status === 'checked_out') {
+            $rawSeconds ??= $session->raw_duration_seconds;
+            $roundedSeconds ??= $session->billable_duration_seconds;
+
             $response['session']['check_out_at'] = $session->check_out_at->toIso8601String();
-            $response['duration_worked_minutes'] = $rawMinutes;
-            $response['duration_worked_hours'] = round($rawMinutes / 60, 2);
+            $response['duration_worked_seconds'] = $rawSeconds;
+            $response['duration_worked_minutes'] = $rawSeconds === null ? $rawMinutes : round($rawSeconds / 60, 2);
+            $response['duration_worked_hours'] = $rawSeconds === null ? round(($rawMinutes ?? 0) / 60, 4) : round($rawSeconds / 3600, 4);
+            $response['billable_duration_seconds'] = $roundedSeconds;
+            $response['billable_duration_minutes'] = $roundedSeconds === null ? $roundedMinutes : round($roundedSeconds / 60, 2);
         }
 
         return $response;

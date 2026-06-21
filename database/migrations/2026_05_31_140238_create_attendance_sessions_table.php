@@ -18,7 +18,9 @@ return new class extends Migration
             $table->timestamp('check_in_at');
             $table->timestamp('check_out_at')->nullable();
             $table->unsignedInteger('raw_duration_minutes')->nullable();
+            $table->unsignedInteger('raw_duration_seconds')->nullable();
             $table->unsignedInteger('billable_duration_minutes')->nullable();
+            $table->unsignedInteger('billable_duration_seconds')->nullable();
             $table->timestamp('rounded_from_at')->nullable();
             $table->timestamp('rounded_to_at')->nullable();
             $table->string('status')->default('open')->index();

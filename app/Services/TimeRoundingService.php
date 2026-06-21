@@ -12,11 +12,14 @@ class TimeRoundingService
 
     public function calculateDurations(Carbon $checkInAt, Carbon $checkOutAt): array
     {
-        $rawMinutes = max(0, $checkInAt->diffInMinutes($checkOutAt, false));
+        $rawSeconds = max(0, $checkInAt->diffInSeconds($checkOutAt, false));
+        $rawMinutes = (int) floor($rawSeconds / 60);
         $roundedMinutes = $this->roundMinutes($rawMinutes);
 
         return [
+            'raw_seconds' => $rawSeconds,
             'raw_minutes' => $rawMinutes,
+            'rounded_seconds' => $roundedMinutes * 60,
             'rounded_minutes' => $roundedMinutes,
             'rounded_to_at' => $checkInAt->copy()->addMinutes($roundedMinutes),
         ];

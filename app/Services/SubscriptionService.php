@@ -157,10 +157,12 @@ class SubscriptionService
 
     public function applyUsage(Subscription $subscription, float $hours): Subscription
     {
-        $subscription->used_hours = round(((float) $subscription->used_hours) + $hours, 2);
+        $hours = round(max(0, $hours), 4);
+
+        $subscription->used_hours = round(((float) $subscription->used_hours) + $hours, 4);
 
         if ($subscription->remaining_hours !== null) {
-            $subscription->remaining_hours = max(0, round(((float) $subscription->remaining_hours) - $hours, 2));
+            $subscription->remaining_hours = max(0, round(((float) $subscription->remaining_hours) - $hours, 4));
         }
 
         $subscription->save();
@@ -170,10 +172,11 @@ class SubscriptionService
 
     public function adjustUsage(Subscription $subscription, float $deltaHours): Subscription
     {
-        $subscription->used_hours = max(0, round(((float) $subscription->used_hours) + $deltaHours, 2));
+        $deltaHours = round($deltaHours, 4);
+        $subscription->used_hours = max(0, round(((float) $subscription->used_hours) + $deltaHours, 4));
 
         if ($subscription->remaining_hours !== null) {
-            $remaining = round(((float) $subscription->remaining_hours) - $deltaHours, 2);
+            $remaining = round(((float) $subscription->remaining_hours) - $deltaHours, 4);
 
             if ($subscription->total_hours !== null) {
                 $remaining = min($subscription->total_hours, $remaining);
