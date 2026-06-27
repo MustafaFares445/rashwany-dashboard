@@ -18,9 +18,13 @@ return new class extends Migration
             $table->string('type')->index();
             $table->string('value')->nullable();
             $table->string('status')->default('pending')->index();
+            $table->timestamp('qualified_at')->nullable()->index();
             $table->timestamp('granted_at')->nullable();
+            $table->foreignId('activated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('notes')->nullable();
             $table->timestamps();
+
+            $table->unique(['member_id', 'loyalty_rule_id'], 'rewards_member_rule_unique');
         });
     }
 
@@ -32,4 +36,3 @@ return new class extends Migration
         Schema::dropIfExists('rewards');
     }
 };
-
