@@ -21,6 +21,12 @@ class RewardForm
                     ->relationship('member', 'name')
                     ->required()
                     ->searchable(),
+                Select::make('subscription_id')
+                    ->relationship('subscription', 'id')
+                    ->label('Linked subscription')
+                    ->nullable()
+                    ->searchable()
+                    ->helperText('Auto-filled from the member active subscription when empty.'),
                 Select::make('loyalty_rule_id')
                     ->relationship('loyaltyRule', 'name')
                     ->nullable()
@@ -33,8 +39,12 @@ class RewardForm
                 Select::make('status')
                     ->required()
                     ->options(self::statusOptions())
-                    ->default(RewardStatus::Pending->value),
+                    ->default(RewardStatus::Pending->value)
+                    ->helperText('Pending awards are not applied until an admin changes the status to Granted.'),
                 DateTimePicker::make('granted_at')
+                    ->disabled()
+                    ->dehydrated(false),
+                DateTimePicker::make('activated_at')
                     ->disabled()
                     ->dehydrated(false),
                 Textarea::make('notes')
@@ -45,7 +55,7 @@ class RewardForm
     private static function rewardTypeOptions(): array
     {
         return collect(LoyaltyRewardType::cases())
-            ->mapWithKeys(fn (LoyaltyRewardType $type) => [$type->value => str_replace('_', ' ', ucfirst($type->value))])
+            ->mapWithKeys(fn (LoyaltyRewardType $type) => [$type->value => str($type->value)->replace('_', ' ')->headline()->toString()])
             ->all();
     }
 
