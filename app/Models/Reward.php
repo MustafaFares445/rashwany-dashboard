@@ -15,13 +15,16 @@ class Reward extends Model
         'type',
         'value',
         'status',
+        'qualified_at',
         'granted_at',
+        'activated_by',
         'notes',
     ];
 
     protected $casts = [
         'type' => LoyaltyRewardType::class,
         'status' => RewardStatus::class,
+        'qualified_at' => 'datetime',
         'granted_at' => 'datetime',
     ];
 
@@ -34,5 +37,9 @@ class Reward extends Model
     {
         return $this->belongsTo(LoyaltyRule::class);
     }
-}
 
+    public function activatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'activated_by');
+    }
+}
