@@ -18,6 +18,18 @@ class LoyaltyRulesTable
                     ->sortable(),
                 TextColumn::make('trigger_type')
                     ->badge(),
+                TextColumn::make('min_hours')
+                    ->label('Min hours')
+                    ->toggleable(),
+                TextColumn::make('period_months')
+                    ->label('Period months')
+                    ->toggleable(),
+                TextColumn::make('min_subscription_months')
+                    ->label('Min subscription months')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('min_visits')
+                    ->label('Min visits')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('reward_type')
                     ->badge(),
                 TextColumn::make('reward_value'),
@@ -36,4 +48,3 @@ class LoyaltyRulesTable
             ->toolbarActions([]);
     }
 }
-
