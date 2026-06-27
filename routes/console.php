@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\DetectAbnormalOpenSessionsJob;
+use App\Jobs\EvaluateLoyaltyRewardsJob;
 use App\Jobs\ExpireSubscriptionsJob;
 use App\Jobs\GenerateDailyReportSnapshotJob;
 use App\Jobs\NotifyExpiringSubscriptionsJob;
@@ -14,5 +15,6 @@ Artisan::command('inspire', function () {
 
 Schedule::job(new DetectAbnormalOpenSessionsJob())->hourly();
 Schedule::job(new ExpireSubscriptionsJob())->hourly();
+Schedule::job(new EvaluateLoyaltyRewardsJob())->hourly();
 Schedule::job(new NotifyExpiringSubscriptionsJob())->dailyAt('08:00');
 Schedule::job(new GenerateDailyReportSnapshotJob())->dailyAt('23:59');

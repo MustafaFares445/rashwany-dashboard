@@ -31,10 +31,19 @@ class RewardForm
                 TextInput::make('value')
                     ->maxLength(255),
                 Select::make('status')
+                    ->label('Admin Activation Status')
                     ->required()
                     ->options(self::statusOptions())
-                    ->default(RewardStatus::Pending->value),
+                    ->default(RewardStatus::Pending->value)
+                    ->helperText('Automatically detected rewards stay Pending until an admin activates them.'),
+                DateTimePicker::make('qualified_at')
+                    ->disabled()
+                    ->dehydrated(false),
                 DateTimePicker::make('granted_at')
+                    ->disabled()
+                    ->dehydrated(false),
+                Select::make('activated_by')
+                    ->relationship('activatedBy', 'name')
                     ->disabled()
                     ->dehydrated(false),
                 Textarea::make('notes')
