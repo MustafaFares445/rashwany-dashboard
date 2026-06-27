@@ -5,14 +5,12 @@ namespace App\Services;
 use App\Enums\LoyaltyRewardType;
 use App\Enums\LoyaltyTriggerType;
 use App\Enums\RewardStatus;
-use App\Filament\Resources\Rewards\RewardResource;
 use App\Models\AttendanceSession;
 use App\Models\LoyaltyRule;
 use App\Models\Member;
 use App\Models\Reward;
 use App\Models\Subscription;
 use App\Models\User;
-use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 
@@ -249,11 +247,6 @@ class LoyaltyService
             ))
             ->icon('heroicon-o-gift')
             ->warning()
-            ->actions([
-                Action::make('view_reward')
-                    ->label('View reward')
-                    ->url(RewardResource::getUrl('edit', ['record' => $reward])),
-            ])
             ->sendToDatabase($users);
     }
 
