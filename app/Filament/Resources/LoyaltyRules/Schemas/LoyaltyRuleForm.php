@@ -4,7 +4,6 @@ namespace App\Filament\Resources\LoyaltyRules\Schemas;
 
 use App\Enums\LoyaltyRewardType;
 use App\Enums\LoyaltyTriggerType;
-use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -22,6 +21,7 @@ class LoyaltyRuleForm
                     ->maxLength(255),
                 Select::make('trigger_type')
                     ->required()
+                    ->live()
                     ->options(self::triggerTypeOptions()),
                 Select::make('reward_type')
                     ->required()
@@ -30,9 +30,30 @@ class LoyaltyRuleForm
                     ->maxLength(255),
                 Toggle::make('is_active')
                     ->default(true),
-                KeyValue::make('condition_json')
-                    ->label('Conditions')
-                    ->columnSpanFull(),
+                TextInput::make('min_hours')
+                    ->label('Minimum hours')
+                    ->numeric()
+                    ->step('0.0001')
+                    ->minValue(0)
+                    ->helperText('Used by total-hours loyalty rules.'),
+                TextInput::make('period_months')
+                    ->label('Period months')
+                    ->numeric()
+                    ->integer()
+                    ->minValue(1)
+                    ->helperText('Optional rolling period for hours or visits. Leave empty for lifetime.'),
+                TextInput::make('min_subscription_months')
+                    ->label('Minimum subscription months')
+                    ->numeric()
+                    ->integer()
+                    ->minValue(1)
+                    ->helperText('Used by subscription-months loyalty rules.'),
+                TextInput::make('min_visits')
+                    ->label('Minimum visits')
+                    ->numeric()
+                    ->integer()
+                    ->minValue(1)
+                    ->helperText('Used by visit-count loyalty rules.'),
             ]);
     }
 
