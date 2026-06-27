@@ -21,7 +21,6 @@ class LoyaltyRuleForm
                     ->maxLength(255),
                 Select::make('trigger_type')
                     ->required()
-                    ->live()
                     ->options(self::triggerTypeOptions()),
                 Select::make('reward_type')
                     ->required()
