@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\Rewards\Tables;
 
+use App\Enums\RewardStatus;
+use App\Services\LoyaltyService;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -20,6 +23,9 @@ class RewardsTable
                 TextColumn::make('loyaltyRule.name')
                     ->label('Rule')
                     ->toggleable(),
+                TextColumn::make('subscription_id')
+                    ->label('Subscription')
+                    ->toggleable(),
                 TextColumn::make('type')
                     ->badge(),
                 TextColumn::make('value'),
@@ -27,6 +33,9 @@ class RewardsTable
                     ->badge(),
                 TextColumn::make('granted_at')
                     ->dateTime(),
+                TextColumn::make('activated_at')
+                    ->dateTime()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),
@@ -40,9 +49,20 @@ class RewardsTable
                     ]),
             ])
             ->recordActions([
+                Action::make('activate_award')
+                    ->label('Activate')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->visible(fn ($record): bool => $record->status === RewardStatus::Pending)
+                    ->action(fn ($record) => app(LoyaltyService::class)->updateReward(
+                        reward: $record,
+                        data: ['status' => RewardStatus::Granted->value],
+                        actorId: auth()->id(),
+                        ipAddress: request()->ip(),
+                    )),
                 EditAction::make(),
             ])
             ->toolbarActions([]);
     }
 }
-
