@@ -370,7 +370,10 @@ class DemoDataSeeder extends Seeder
             ['name' => '100 Hours Bonus'],
             [
                 'trigger_type' => LoyaltyTriggerType::TotalHours->value,
-                'condition_json' => ['min_hours' => 100, 'period_months' => 2],
+                'min_total_hours' => 100,
+                'period_months' => 2,
+                'min_subscription_months' => null,
+                'min_visit_count' => null,
                 'reward_type' => LoyaltyRewardType::FreeHours->value,
                 'reward_value' => '2',
                 'is_active' => true,
@@ -383,10 +386,11 @@ class DemoDataSeeder extends Seeder
             [
                 'value' => '2',
                 'status' => RewardStatus::Pending->value,
+                'qualified_at' => now(),
                 'granted_at' => null,
+                'activated_by' => null,
                 'notes' => 'Eligible soon based on usage',
             ],
         );
     }
 }
-
