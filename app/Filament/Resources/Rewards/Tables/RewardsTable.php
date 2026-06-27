@@ -2,6 +2,10 @@
 
 namespace App\Filament\Resources\Rewards\Tables;
 
+use App\Enums\RewardStatus;
+use App\Models\Reward;
+use App\Services\LoyaltyService;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -40,9 +44,18 @@ class RewardsTable
                     ]),
             ])
             ->recordActions([
+                Action::make('grant')
+                    ->label('Activate bonus')
+                    ->requiresConfirmation()
+                    ->visible(fn (Reward $record): bool => $record->status === RewardStatus::Pending)
+                    ->action(fn (Reward $record): Reward => app(LoyaltyService::class)->updateReward(
+                        reward: $record,
+                        data: ['status' => RewardStatus::Granted->value],
+                        actorId: auth()->id(),
+                        ipAddress: request()->ip(),
+                    )),
                 EditAction::make(),
             ])
             ->toolbarActions([]);
     }
 }
-
