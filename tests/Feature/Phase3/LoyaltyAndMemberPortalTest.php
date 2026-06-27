@@ -16,6 +16,7 @@ use App\Models\LoyaltyRule;
 use App\Models\Member;
 use App\Models\Package;
 use App\Models\Subscription;
+use App\Models\User;
 use App\Services\AnalyticsService;
 use App\Services\LoyaltyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -55,7 +56,54 @@ class LoyaltyAndMemberPortalTest extends TestCase
 
         $this->assertSame('0.00', $subscription->used_hours);
         $this->assertSame('20.00', $subscription->remaining_hours);
+        $this->assertSame($subscription->id, $reward->subscription_id);
         $this->assertNotNull($reward->granted_at);
+        $this->assertNotNull($reward->activated_at);
+    }
+
+    public function test_loyalty_rule_auto_detects_pending_reward_without_activating_it(): void
+    {
+        User::create([
+            'name' => 'Admin',
+            'email' => 'admin@example.test',
+            'password' => 'password',
+        ]);
+
+        [$member, $subscription] = $this->createMemberWithSubscription();
+
+        LoyaltyRule::create([
+            'name' => '1 hour royal point',
+            'trigger_type' => 'total_hours',
+            'threshold_hours' => 1,
+            'period_months' => 1,
+            'reward_type' => LoyaltyRewardType::FreeHours->value,
+            'reward_value' => '2',
+            'is_active' => true,
+        ]);
+
+        AttendanceSession::create([
+            'member_id' => $member->id,
+            'subscription_id' => $subscription->id,
+            'check_in_at' => now()->subHour(),
+            'check_out_at' => now(),
+            'raw_duration_minutes' => 60,
+            'raw_duration_seconds' => 3600,
+            'billable_duration_minutes' => 60,
+            'billable_duration_seconds' => 3600,
+            'status' => SessionStatus::Closed->value,
+        ]);
+
+        app(LoyaltyService::class)->evaluateMember($member, $subscription);
+
+        $reward = $member->rewards()->firstOrFail();
+        $subscription->refresh();
+
+        $this->assertSame(RewardStatus::Pending, $reward->status);
+        $this->assertSame($subscription->id, $reward->subscription_id);
+        $this->assertNull($reward->granted_at);
+        $this->assertNull($reward->activated_at);
+        $this->assertSame('20.00', $subscription->remaining_hours);
+        $this->assertDatabaseCount('notifications', 1);
     }
 
     public function test_member_dashboard_endpoint_returns_subscription_and_open_session(): void
@@ -94,7 +142,6 @@ class LoyaltyAndMemberPortalTest extends TestCase
         app(AnalyticsService::class)->generateDailySnapshot();
 
         $snapshot = DailyReportSnapshot::query()->firstOrFail();
-
         $this->assertSame(now()->toDateString(), $snapshot->snapshot_date->toDateString());
         $this->assertSame(1, $snapshot->active_members_count);
         $this->assertSame(1, $snapshot->active_subscriptions_count);

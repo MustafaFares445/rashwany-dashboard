@@ -12,7 +12,11 @@ class LoyaltyRule extends Model
     protected $fillable = [
         'name',
         'trigger_type',
-        'condition_json',
+        'threshold_hours',
+        'threshold_visits',
+        'threshold_subscription_months',
+        'period_months',
+        'description',
         'reward_type',
         'reward_value',
         'is_active',
@@ -20,7 +24,10 @@ class LoyaltyRule extends Model
 
     protected $casts = [
         'trigger_type' => LoyaltyTriggerType::class,
-        'condition_json' => 'array',
+        'threshold_hours' => 'decimal:2',
+        'threshold_visits' => 'integer',
+        'threshold_subscription_months' => 'integer',
+        'period_months' => 'integer',
         'reward_type' => LoyaltyRewardType::class,
         'is_active' => 'boolean',
     ];
@@ -30,4 +37,3 @@ class LoyaltyRule extends Model
         return $this->hasMany(Reward::class);
     }
 }
-
