@@ -176,9 +176,12 @@ class LoyaltyService
     private function memberQualifiesForRule(Member $member, LoyaltyRule $rule): bool
     {
         return match ($this->triggerTypeValue($rule)) {
-            LoyaltyTriggerType::TotalHours->value => $this->memberTotalHours($member, $rule) >= (float) $rule->min_hours,
-            LoyaltyTriggerType::SubscriptionMonths->value => $this->memberSubscriptionMonths($member) >= (int) $rule->min_subscription_months,
-            LoyaltyTriggerType::VisitCount->value => $this->memberVisitCount($member, $rule) >= (int) $rule->min_visits,
+            LoyaltyTriggerType::TotalHours->value => $rule->min_hours !== null
+                && $this->memberTotalHours($member, $rule) >= (float) $rule->min_hours,
+            LoyaltyTriggerType::SubscriptionMonths->value => $rule->min_subscription_months !== null
+                && $this->memberSubscriptionMonths($member) >= (int) $rule->min_subscription_months,
+            LoyaltyTriggerType::VisitCount->value => $rule->min_visits !== null
+                && $this->memberVisitCount($member, $rule) >= (int) $rule->min_visits,
             LoyaltyTriggerType::Birthday->value => $this->isMemberBirthdayToday($member),
             default => false,
         };
