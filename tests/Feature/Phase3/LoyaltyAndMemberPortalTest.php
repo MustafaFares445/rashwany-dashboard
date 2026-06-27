@@ -3,6 +3,7 @@
 namespace Tests\Feature\Phase3;
 
 use App\Enums\LoyaltyRewardType;
+use App\Enums\LoyaltyTriggerType;
 use App\Enums\MemberStatus;
 use App\Enums\PackageDurationUnit;
 use App\Enums\PackageRenewalType;
@@ -15,10 +16,13 @@ use App\Models\DailyReportSnapshot;
 use App\Models\LoyaltyRule;
 use App\Models\Member;
 use App\Models\Package;
+use App\Models\Reward;
 use App\Models\Subscription;
+use App\Models\User;
 use App\Services\AnalyticsService;
 use App\Services\LoyaltyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class LoyaltyAndMemberPortalTest extends TestCase
@@ -36,8 +40,9 @@ class LoyaltyAndMemberPortalTest extends TestCase
 
         $rule = LoyaltyRule::create([
             'name' => '100h usage reward',
-            'trigger_type' => 'total_hours',
-            'reward_type' => 'free_hours',
+            'trigger_type' => LoyaltyTriggerType::TotalHours->value,
+            'min_hours' => 100,
+            'reward_type' => LoyaltyRewardType::FreeHours->value,
             'reward_value' => '2',
             'is_active' => true,
         ]);
@@ -53,9 +58,54 @@ class LoyaltyAndMemberPortalTest extends TestCase
         $subscription->refresh();
         $reward->refresh();
 
-        $this->assertSame('0.00', $subscription->used_hours);
-        $this->assertSame('20.00', $subscription->remaining_hours);
+        $this->assertSame('0.0000', $subscription->used_hours);
+        $this->assertSame('20.0000', $subscription->remaining_hours);
         $this->assertNotNull($reward->granted_at);
+    }
+
+    public function test_auto_loyalty_rule_creates_pending_reward_and_database_notification(): void
+    {
+        User::create([
+            'name' => 'Admin',
+            'email' => 'admin@example.test',
+            'password' => Hash::make('password'),
+        ]);
+
+        [$member, $subscription] = $this->createMemberWithSubscription();
+
+        $rule = LoyaltyRule::create([
+            'name' => 'One Hour Bonus',
+            'trigger_type' => LoyaltyTriggerType::TotalHours->value,
+            'min_hours' => 1,
+            'period_months' => 2,
+            'reward_type' => LoyaltyRewardType::FreeHours->value,
+            'reward_value' => '2',
+            'is_active' => true,
+        ]);
+
+        AttendanceSession::create([
+            'member_id' => $member->id,
+            'subscription_id' => $subscription->id,
+            'check_in_at' => now()->subHours(2),
+            'check_out_at' => now()->subHour(),
+            'raw_duration_minutes' => 60,
+            'raw_duration_seconds' => 3600,
+            'billable_duration_minutes' => 60,
+            'billable_duration_seconds' => 3600,
+            'status' => SessionStatus::Closed->value,
+        ]);
+
+        $created = app(LoyaltyService::class)->evaluateMember($member);
+
+        $this->assertSame(1, $created);
+
+        $reward = Reward::query()->where('member_id', $member->id)->where('loyalty_rule_id', $rule->id)->firstOrFail();
+
+        $this->assertSame(RewardStatus::Pending, $reward->status);
+        $this->assertNull($reward->granted_at);
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_type' => User::class,
+        ]);
     }
 
     public function test_member_dashboard_endpoint_returns_subscription_and_open_session(): void
