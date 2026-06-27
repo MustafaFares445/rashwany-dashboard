@@ -19,6 +19,7 @@ class AttendanceService
         private readonly SettingsService $settings,
         private readonly SubscriptionService $subscriptions,
         private readonly TimeRoundingService $rounding,
+        private readonly LoyaltyService $loyalty,
     ) {}
 
     public function processPhoneAndPin(string $phone, string $pin): array
@@ -122,6 +123,8 @@ class AttendanceService
                 $this->subscriptions->applyUsage($session->subscription, $usedHours);
             }
         }
+
+        $this->loyalty->evaluateMember($member);
 
         return $this->buildSuccessResponse($member, $session, 'checked_out', $rawMinutes, $roundedMinutes, $rawSeconds, $roundedSeconds);
     }
@@ -244,6 +247,8 @@ class AttendanceService
                 $this->subscriptions->applyUsage($session->subscription, $usedHours);
             }
         }
+
+        $this->loyalty->evaluateMember($member);
 
         return $this->successScan($scan, $session);
     }
