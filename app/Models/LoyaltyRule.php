@@ -12,6 +12,7 @@ class LoyaltyRule extends Model
     protected $fillable = [
         'name',
         'trigger_type',
+        'condition_json',
         'min_hours',
         'period_months',
         'min_subscription_months',
@@ -30,6 +31,18 @@ class LoyaltyRule extends Model
         'reward_type' => LoyaltyRewardType::class,
         'is_active' => 'boolean',
     ];
+
+    public function setConditionJsonAttribute(array|string|null $value): void
+    {
+        $conditions = is_array($value)
+            ? $value
+            : (json_decode((string) $value, true) ?: []);
+
+        $this->attributes['min_hours'] = $conditions['min_hours'] ?? null;
+        $this->attributes['period_months'] = $conditions['period_months'] ?? null;
+        $this->attributes['min_subscription_months'] = $conditions['min_subscription_months'] ?? null;
+        $this->attributes['min_visits'] = $conditions['min_visits'] ?? null;
+    }
 
     public function rewards(): HasMany
     {
