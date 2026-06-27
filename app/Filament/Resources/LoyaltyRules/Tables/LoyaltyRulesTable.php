@@ -18,6 +18,17 @@ class LoyaltyRulesTable
                     ->sortable(),
                 TextColumn::make('trigger_type')
                     ->badge(),
+                TextColumn::make('threshold_hours')
+                    ->label('Hours point')
+                    ->toggleable(),
+                TextColumn::make('threshold_visits')
+                    ->label('Visits point')
+                    ->toggleable(),
+                TextColumn::make('threshold_subscription_months')
+                    ->label('Months point')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('period_months')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('reward_type')
                     ->badge(),
                 TextColumn::make('reward_value'),
@@ -36,4 +47,3 @@ class LoyaltyRulesTable
             ->toolbarActions([]);
     }
 }
-
