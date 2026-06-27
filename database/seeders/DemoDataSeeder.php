@@ -56,7 +56,7 @@ class DemoDataSeeder extends Seeder
         $sessions = $this->seedSessions($members, $subscriptions);
         $this->seedPayments($members, $subscriptions, $admin->id);
         $this->seedCorrectionRequests($members, $sessions, $admin->id);
-        $this->seedLoyalty($members);
+        $this->seedLoyalty($members, $subscriptions);
     }
 
     private function seedSettings(): void
@@ -364,13 +364,17 @@ class DemoDataSeeder extends Seeder
         );
     }
 
-    private function seedLoyalty(array $members): void
+    private function seedLoyalty(array $members, array $subscriptions): void
     {
         $rule = LoyaltyRule::query()->updateOrCreate(
             ['name' => '100 Hours Bonus'],
             [
                 'trigger_type' => LoyaltyTriggerType::TotalHours->value,
-                'condition_json' => ['min_hours' => 100, 'period_months' => 2],
+                'threshold_hours' => 100,
+                'threshold_visits' => null,
+                'threshold_subscription_months' => null,
+                'period_months' => 2,
+                'description' => 'Auto-detect members who reach 100 attendance hours within 2 months. Admin activation is required.',
                 'reward_type' => LoyaltyRewardType::FreeHours->value,
                 'reward_value' => '2',
                 'is_active' => true,
@@ -381,12 +385,13 @@ class DemoDataSeeder extends Seeder
         $member->rewards()->updateOrCreate(
             ['loyalty_rule_id' => $rule->id, 'type' => LoyaltyRewardType::FreeHours->value],
             [
+                'subscription_id' => $subscriptions['Rana Khaled']->id,
                 'value' => '2',
                 'status' => RewardStatus::Pending->value,
                 'granted_at' => null,
-                'notes' => 'Eligible soon based on usage',
+                'activated_at' => null,
+                'notes' => 'Eligible soon based on usage. Admin activation is required.',
             ],
         );
     }
 }
-
